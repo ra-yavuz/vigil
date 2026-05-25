@@ -44,10 +44,10 @@ handles persistence, health, scheduling, and session rotation, and split all the
 separate **transport** process so the chat layer can restart without killing the brain.
 Give the AI a real Linux box with tools rather than a fixed API, and expose extra
 capabilities as small MCP servers. Then - and this is the load-bearing part - hold the agent
-to an **operating doctrine** that is re-injected on every turn by a `UserPromptSubmit` hook,
-so an auto-approved agent keeps verifying before it acts, refuses workarounds, and never
-claims "done" without a real run. The architecture makes it reliable; the doctrine makes it
-diligent.
+to an **operating doctrine** it reads at session start, kept fresh by a minimal per-turn
+`UserPromptSubmit` reminder that points back at it, so an auto-approved agent keeps verifying
+before it acts, refuses workarounds, and never claims "done" without a real run. The
+architecture makes it reliable; the doctrine makes it diligent.
 
 ## The autonomous-diligence pattern, in brief
 

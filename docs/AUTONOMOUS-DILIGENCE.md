@@ -163,6 +163,21 @@ UserPromptSubmit hook fires  ──►  same reminder again  ──►  agent ac
 The full rules live in one place and are loaded once. The discipline is re-asserted every
 turn at near-zero cost. That split is the whole trick.
 
+To be precise about what fires when, because it is the crux of the design:
+
+- **The full doctrine is not re-injected every turn.** It is read once at session start, and
+  re-read from time to time, on demand, when the agent is in doubt or the user references a
+  section by name. Re-injecting the whole document on every turn would be wasteful and would
+  bloat the context; that is exactly what this design avoids.
+- **Only the minimal reminder fires every turn.** The per-turn `UserPromptSubmit` hook injects
+  the small (~1.5 KB) reminder that restates the non-negotiables and the pre-response check,
+  and *points back* at `doctrine.md`. It is the trigger; the doctrine is the substance it
+  points to.
+
+So the cadence is: full doctrine once per session (plus occasional on-demand re-reads),
+minimal reminder every turn. Keep the reminder small and the doctrine complete; do not be
+tempted to inline the whole doctrine into the per-turn hook.
+
 ---
 
 ## The pre-response check

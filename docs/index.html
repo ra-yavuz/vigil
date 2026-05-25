@@ -171,10 +171,11 @@
     rotation, and split all the I/O into a separate <strong>transport</strong> process so
     the chat layer can restart without killing the brain. Give the AI a real Linux box with
     tools rather than a fixed API, and expose extra capabilities as small MCP servers. Then,
-    the load-bearing part: hold the agent to an <strong>operating doctrine</strong> that is
-    re-injected on every turn by a hook, so an auto-approved agent keeps verifying before it
-    acts, refuses workarounds, and never claims "done" without a real run. The architecture
-    makes it reliable; the doctrine makes it diligent.
+    the load-bearing part: hold the agent to an <strong>operating doctrine</strong> it reads
+    at session start, kept fresh by a minimal per-turn hook reminder that points back at it,
+    so an auto-approved agent keeps verifying before it acts, refuses workarounds, and never
+    claims "done" without a real run. The architecture makes it reliable; the doctrine makes
+    it diligent.
   </p>
 
   <h2>Autonomous diligence: the load-bearing part</h2>
