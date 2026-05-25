@@ -146,21 +146,36 @@ Two modes are worth supporting, and the choice matters:
 
 - **Per-invocation mode** - spawn a fresh `claude -p --resume <session-id>` per message and
   let it exit when the turn is done. Continuity comes from `--resume` (the session lives on
-  disk), not from keeping the process alive. Simpler, more robust to memory leaks and wedged
-  processes, at the cost of a little startup latency per message. **This is what the reference
-  uses for the always-on brain** - the autonomy engine constructs its agent with persistent
-  mode turned off. For a long-running operator, robustness beats shaving a second off each
-  reply.
+  disk), not from keeping the process alive. Simpler, and far more robust to memory leaks and
+  wedged processes, at the cost of a little startup latency per message. **This is what the
+  reference uses for the always-on brain** - the autonomy engine constructs its agent with
+  persistent mode turned off, and gives each invocation a generous activity-based timeout
+  (15 minutes of silence, reset on any output) so long tool-running turns are not cut off.
 - **Persistent mode** - one long-lived process held open across messages, fed via
-  streaming-JSON stdin/stdout. Lower per-message latency and live token streaming, but you
-  own the process's whole lifecycle (leaks, hangs, restarts). The reference keeps this as the
-  wrapper's default and uses it on the synchronous request/response API path, where a caller
-  is waiting on a single response.
+  streaming-JSON stdin/stdout. Lower per-message latency and live token streaming, but you own
+  the process's whole lifecycle: leaks, hangs, and outright crashes are all yours to detect
+  and recover from. The wrapper keeps this as its default and the reference uses it only on the
+  synchronous request/response API path, where a human caller is waiting on a single response.
 
-The important correction to the usual mental model: "persistent" here properly describes the
-**session and state** (resumable session id, memory, chat history on disk), not necessarily a
-**long-lived OS process**. The brain can be, and in the reference is, a process that comes and
-goes per message while the *conversation* persists underneath it via `--resume`.
+> **Learning, stated as such: prefer per-invocation for the always-on brain.** In the
+> reference deployment the long-lived persistent process proved unreliable for a 24/7 brain -
+> over long uptimes it accumulated crashes and wedged states - which is why the autonomy engine
+> was moved to spawning a fresh process per message with `--resume`. Two caveats on how firmly
+> to take this. First, it is **operator experience, not something you can read off the code**:
+> the repository shows *that* the brain runs per-invocation (the supervisor sets persistent
+> mode off), but the commit history is squashed, so it does not document *why*. Second, the
+> behaviour you hit will depend on your agent CLI, its version, and your load; treat "persistent
+> mode is fragile over long uptimes" as a reason to default to per-invocation and to test
+> persistent mode hard before trusting it, not as a universal law. What the code *does*
+> corroborate: a `claude -p` invocation can still die mid-turn (a `SIGABRT`/`SIGSEGV` usually
+> means a corrupted or locked session), so the wrapper detects that signal, clears the session,
+> and lets the next message start clean rather than looping on a broken one. Build that recovery
+> regardless of which mode you choose.
+
+The mental-model correction that follows: "persistent" properly describes the **session and
+state** (resumable session id, memory, chat history on disk), not necessarily a **long-lived
+OS process**. The brain can be, and in the reference is, a process that comes and goes per
+message while the *conversation* persists underneath it via `--resume`.
 
 ### 3.2 The supervisor (autonomy engine)
 
@@ -484,8 +499,9 @@ real run - with no human present. See [AUTONOMOUS-DILIGENCE.md](AUTONOMOUS-DILIG
 ## 5. Minimal build order (suggested)
 
 1. **Wrapper first.** Get a class that spawns the agent CLI in streaming-JSON mode, sends a
-   message, and returns the text. Prove streaming and resume work. Everything depends on
-   this.
+   message, and returns the text. Prove streaming and resume work. Support both process modes
+   but default the always-on path to per-invocation (`claude -p --resume`) for the stability
+   reasons in section 3.1. Everything depends on this.
 2. **One channel.** Wire up the simplest channel end to end. Email (IMAP in, SMTP out) is
    easiest because it has real APIs and no session fragility. Get "email in -> AI -> email
    out" working.
