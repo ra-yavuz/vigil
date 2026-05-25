@@ -41,9 +41,12 @@ A persistent operator AI that:
   [AUTONOMOUS-DILIGENCE.md](AUTONOMOUS-DILIGENCE.md) - read it first; it is the load-bearing
   idea, not an add-on.
 
-The core trick is simple to state and fiddly to get right: **run the coding-agent CLI as a
-long-lived subprocess, pipe messages in and responses out as JSON, and wrap that in a
-supervisor that handles persistence, health, and scheduling.** Everything else is plumbing
+The core trick is simple to state and fiddly to get right: **drive the coding-agent CLI as a
+subprocess with a resumable session, pipe messages in and responses out as JSON, and wrap
+that in a supervisor that handles persistence, health, and scheduling.** The subprocess can
+be held open across messages or respawned per message with `--resume` (the reference does the
+latter for the always-on brain; see section 3.1) - what persists is the session, not
+necessarily the process. Everything else is plumbing
 around that idea, plus the doctrine layer that keeps the plumbing honest.
 
 ---
@@ -71,8 +74,8 @@ around that idea, plus the doctrine layer that keeps the plumbing honest.
                          |  |       |                      |        |  |
                          |  |       v                      v        |  |
                          |  |  agent CLI            HTTP/WS :8080,   |  |
-                         |  |  (persistent          IMAP/SMTP,      |  |
-                         |  |   subprocess)         Signal          |  |
+                         |  |  (per-message         IMAP/SMTP,      |  |
+                         |  |   --resume)           Signal          |  |
                          |  |       |                               |  |
                          |  |       v (stdin/stdout stream-json)    |  |
                          |  |   MCP tool servers (email, calendar,  |  |
@@ -105,7 +108,8 @@ Two design choices drive everything:
 
 ### 3.1 The agent wrapper (the heart of it)
 
-Run the coding-agent CLI as a persistent child process in a streaming JSON mode. You write
+Drive the coding-agent CLI as a child process in a streaming JSON mode (held open across
+messages, or respawned per message with `--resume` - see the two modes below). You write
 user messages to its stdin as JSON lines, and read assistant output (token deltas, tool
 calls, final result) from its stdout as JSON lines.
 
@@ -138,17 +142,33 @@ few hundred lines):
 - Auto-restart on crash with backoff. On a fatal signal (corrupted session), clear the
   session and start clean.
 
-Two modes are worth supporting:
+Two modes are worth supporting, and the choice matters:
 
-- **Persistent mode** - one long-lived process, used for the always-on supervisor brain.
-- **Per-invocation mode** - spawn the CLI per message and resume the session. Simpler, more
-  robust to leaks, slightly slower. Good for the request/response API path.
+- **Per-invocation mode** - spawn a fresh `claude -p --resume <session-id>` per message and
+  let it exit when the turn is done. Continuity comes from `--resume` (the session lives on
+  disk), not from keeping the process alive. Simpler, more robust to memory leaks and wedged
+  processes, at the cost of a little startup latency per message. **This is what the reference
+  uses for the always-on brain** - the autonomy engine constructs its agent with persistent
+  mode turned off. For a long-running operator, robustness beats shaving a second off each
+  reply.
+- **Persistent mode** - one long-lived process held open across messages, fed via
+  streaming-JSON stdin/stdout. Lower per-message latency and live token streaming, but you
+  own the process's whole lifecycle (leaks, hangs, restarts). The reference keeps this as the
+  wrapper's default and uses it on the synchronous request/response API path, where a caller
+  is waiting on a single response.
+
+The important correction to the usual mental model: "persistent" here properly describes the
+**session and state** (resumable session id, memory, chat history on disk), not necessarily a
+**long-lived OS process**. The brain can be, and in the reference is, a process that comes and
+goes per message while the *conversation* persists underneath it via `--resume`.
 
 ### 3.2 The supervisor (autonomy engine)
 
 The supervisor is a long-running process that:
 
-- Owns the persistent agent subprocess (the brain).
+- Owns the agent subprocess (the brain) and its resumable session. In the reference this is
+  per-invocation: a fresh `claude -p --resume` per message, with continuity carried by the
+  session id on disk rather than a process that stays up.
 - Runs an **IPC server** (a local unix socket). The transport process connects to it,
   forwards incoming messages, and receives the AI's responses to relay back to the user.
 - Maintains a **message queue with batching**: if several messages arrive while the AI is
@@ -547,8 +567,9 @@ on the owner's own accounts and data. Before replicating:
 
 - Container: Docker (a recent `node` base), managed via a container UI such as Portainer.
 - Language/runtime: Node.js.
-- AI: a coding-agent CLI run as a persistent streaming-JSON subprocess (the reference uses
-  the Claude CLI), optionally with a second agent CLI as a rate-limit fallback.
+- AI: a coding-agent CLI driven over streaming JSON with a resumable session (the reference
+  uses the Claude CLI, respawned per message with `--resume` for the always-on brain),
+  optionally with a second agent CLI as a rate-limit fallback.
 - Messaging: a WhatsApp Web library in its own container, IMAP/SMTP libraries for email,
   `signal-cli` for Signal.
 - Tooling: MCP servers (one per capability) built on the MCP SDK.
