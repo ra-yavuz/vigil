@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>vigil - Build an autonomous AI operations assistant, and keep it diligent</title>
+<meta name="description" content="vigil by Ramazan Yavuz: a reference architecture for an always-on, autonomous AI operations assistant in a container, plus the doctrine + hooks pattern that makes an auto-approved agent diligent enough to leave running unattended.">
+<meta name="author" content="Ramazan Yavuz">
+<meta name="keywords" content="autonomous AI agent, AI operations assistant, Claude Code hooks, UserPromptSubmit hook, agent doctrine, always-on AI, AI supervisor architecture, MCP servers, agent guardrails">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://ra-yavuz.github.io/vigil/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="vigil - Build an autonomous AI operations assistant, and keep it diligent">
+<meta property="og:description" content="A reference architecture for an always-on autonomous AI operator, plus the doctrine + hooks pattern that makes an auto-approved agent diligent enough to leave running.">
+<meta property="og:url" content="https://ra-yavuz.github.io/vigil/">
+<meta property="og:site_name" content="ra-yavuz">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="vigil - Build an autonomous AI operations assistant, and keep it diligent">
+<meta name="twitter:description" content="Reference architecture for an always-on autonomous AI operator, plus the doctrine + hooks pattern that keeps an auto-approved agent honest.">
+<style>
+  :root {
+    --fg: #1a1a1a;
+    --muted: #5e5e5e;
+    --bg: #f4f1ec;
+    --card: #ffffff;
+    --line: #d8d4cc;
+    --code-bg: #ebe7e0;
+    --link: #0a4ca8;
+    --apt-bg: #eef2f8;
+    --warn-bg: #fff7d6;
+    --warn-fg: #5a4500;
+    --warn-line: #e8d36b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fg: #ececec;
+      --muted: #9a9a9a;
+      --bg: #1c1d20;
+      --card: #25272b;
+      --line: #353941;
+      --code-bg: #14151a;
+      --link: #7cb0ff;
+      --apt-bg: #1f242d;
+      --warn-bg: #3a2e00;
+      --warn-fg: #f6e2a4;
+      --warn-line: #6a5500;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { overflow-x: hidden; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--fg); background: var(--bg);
+    line-height: 1.55;
+    overflow-wrap: break-word;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 48px 24px 96px; }
+  @media (max-width: 540px) {
+    main { padding: 28px 16px 64px; }
+  }
+  .crumb { font-size: 0.86rem; color: var(--muted); margin: 0 0 18px; }
+  h1 { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.7rem; margin: 0 0 6px; letter-spacing: -0.005em; }
+  p.tag { color: var(--muted); margin: 0 0 18px; font-size: 1rem; max-width: 62ch; }
+  h2 {
+    font-size: 1rem; margin: 36px 0 10px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--muted); font-weight: 600;
+  }
+  h3 { font-size: 1.02rem; margin: 22px 0 6px; }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code {
+    background: var(--code-bg); padding: 1px 5px; border-radius: 3px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.9em;
+    overflow-wrap: anywhere;
+  }
+  pre {
+    background: var(--code-bg); padding: 12px 14px; border-radius: 6px;
+    border: 1px solid var(--line); overflow-x: auto;
+    font-size: 0.84rem; line-height: 1.5; margin: 0;
+    white-space: pre;
+  }
+  pre code { background: transparent; padding: 0; }
+  .links-row a { margin-right: 14px; font-size: 0.95rem; }
+  .doc-card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 14px 16px;
+    margin: 0 0 12px;
+    transition: border-color 120ms ease, transform 120ms ease;
+  }
+  .doc-card:hover { border-color: var(--link); transform: translateY(-1px); }
+  .doc-card h3 { margin-top: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1rem; }
+  .doc-card p { margin: 0 0 8px; color: var(--muted); font-size: 0.94rem; }
+  .callout {
+    background: var(--apt-bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 16px 18px;
+  }
+  .callout h2 { margin-top: 0; }
+  ul.clean { padding-left: 20px; }
+  ul.clean li { margin: 4px 0; }
+  .warn {
+    background: var(--warn-bg); color: var(--warn-fg);
+    border-left: 4px solid var(--warn-line);
+    padding: 12px 16px; border-radius: 4px;
+    font-size: 0.9rem; margin: 12px 0 0;
+  }
+  footer {
+    margin-top: 56px; color: var(--muted); font-size: 0.85rem;
+    border-top: 1px solid var(--line); padding-top: 14px;
+  }
+</style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "vigil: architecture of an autonomous AI operations assistant, and the doctrine + hooks pattern for autonomous diligence",
+  "description": "A reference architecture for an always-on autonomous AI operator running in a container, and a verified pattern (operating doctrine plus Claude Code SessionStart and UserPromptSubmit hooks) that re-asserts engineering diligence on every turn so an auto-approved agent stays honest unattended.",
+  "url": "https://ra-yavuz.github.io/vigil/",
+  "author": {
+    "@type": "Person",
+    "name": "Ramazan Yavuz",
+    "url": "https://ra-yavuz.github.io/"
+  },
+  "license": "https://opensource.org/licenses/MIT"
+}
+</script>
+</head>
+<body>
+<main>
+  <p class="crumb">
+    <a href="https://ra-yavuz.github.io/">ra-yavuz</a> &rsaquo; vigil
+  </p>
+
+  <h1>vigil</h1>
+  <p class="tag">
+    How to build an always-on, autonomous AI operations assistant - and how to make it
+    diligent enough to leave running unattended. A reference architecture plus the
+    <strong>doctrine + hooks</strong> pattern that keeps an auto-approved agent honest on
+    every turn.
+  </p>
+
+  <div class="links-row">
+    <a href="https://github.com/ra-yavuz/vigil">source</a>
+    <a href="https://github.com/ra-yavuz/vigil/blob/main/docs/AUTONOMOUS-DILIGENCE.md">diligence pattern</a>
+    <a href="https://github.com/ra-yavuz/vigil/blob/main/docs/ARCHITECTURE.md">architecture</a>
+    <a href="https://github.com/ra-yavuz/vigil/tree/main/examples">examples</a>
+    <a href="https://github.com/ra-yavuz/vigil/issues">issues</a>
+  </div>
+
+  <h2>What this is</h2>
+  <p>
+    <code>vigil</code> is a documentation project. It describes, in enough depth to recreate
+    from scratch, the architecture of a persistent "operator" AI: one that lives in a
+    container, talks to its owner over normal chat channels (WhatsApp, Signal, email), and
+    can autonomously write and run code, install packages, schedule tasks, and host the
+    things it builds. There is no daemon to install and nothing to package; the repo is the
+    spec and the example files.
+  </p>
+
+  <h2>The idea in one paragraph</h2>
+  <p>
+    Run a coding-agent CLI (the reference uses the Claude CLI) as a long-lived subprocess in
+    a container, piping messages in and responses out as JSON. Wrap it in a
+    <strong>supervisor</strong> that handles persistence, health, scheduling, and session
+    rotation, and split all the I/O into a separate <strong>transport</strong> process so
+    the chat layer can restart without killing the brain. Give the AI a real Linux box with
+    tools rather than a fixed API, and expose extra capabilities as small MCP servers. Then,
+    the load-bearing part: hold the agent to an <strong>operating doctrine</strong> that is
+    re-injected on every turn by a hook, so an auto-approved agent keeps verifying before it
+    acts, refuses workarounds, and never claims "done" without a real run. The architecture
+    makes it reliable; the doctrine makes it diligent.
+  </p>
+
+  <h2>Autonomous diligence: the load-bearing part</h2>
+  <div class="callout">
+    <p>
+      The dangerous moments in an autonomous run are individual actions: a destructive
+      command, an unverified assumption, a "done" that was never tested. Rules buried in a
+      one-time system prompt drift as the conversation grows and never reassert themselves at
+      the moment those actions happen.
+    </p>
+    <p>The fix is three small pieces, a few kilobytes total:</p>
+    <ul class="clean">
+      <li>
+        <strong>A doctrine file</strong> - the full operating rules, written once: verify
+        before acting, no workarounds, respect specs, don't claim completion you haven't
+        verified, push back when the request is wrong, minimise blast radius, when unsure ask
+        or stop.
+      </li>
+      <li>
+        <strong>A <code>SessionStart</code> hook</strong> - fires once per session, tells the
+        agent to read the doctrine in full. Cost: a few hundred characters, once.
+      </li>
+      <li>
+        <strong>A <code>UserPromptSubmit</code> hook</strong> - fires on <em>every</em> turn,
+        re-states the non-negotiables and asks the agent to print a pre-response check before
+        any consequential reply. Cost: ~1.5 KB per turn, negligible.
+      </li>
+    </ul>
+    <p style="margin-bottom:0;">
+      Re-asserting the discipline right before the agent acts - deterministically, with no
+      model call - is what keeps a capable, auto-approved agent reasoning like a diligent
+      engineer instead of an eager one. Full write-up:
+      <a href="https://github.com/ra-yavuz/vigil/blob/main/docs/AUTONOMOUS-DILIGENCE.md">AUTONOMOUS-DILIGENCE.md</a>.
+    </p>
+  </div>
+
+  <h2>The pre-response check</h2>
+  <p>
+    The most useful single element. The per-turn reminder asks the agent to print this before
+    any consequential reply, and the doctrine forbids answering it ritually:
+  </p>
+  <pre><code>PRE-RESPONSE CHECK
+1. Verified, not assumed?
+2. Completion claims backed by actual runs?
+3. Relevant specs read and respected?
+4. Overclaiming / over-engineering / workaround in this reply?
+5. Pushback warranted?</code></pre>
+  <p style="color: var(--muted); font-size: 0.92rem;">
+    It is printed in the output, so a human reviewing the run and the agent's own subsequent
+    reasoning both see it. It raises the cost of the careless shortcut: the agent has to
+    assert, in writing, that it verified before it claims it did.
+  </p>
+
+  <h2>Read the docs</h2>
+
+  <div class="doc-card">
+    <h3>AUTONOMOUS-DILIGENCE.md</h3>
+    <p>
+      The doctrine + hooks pattern that makes autonomy safe to leave running: why a system
+      prompt is not enough, the three pieces, how they wire together, and how to adapt it.
+      Start here.
+    </p>
+    <a href="https://github.com/ra-yavuz/vigil/blob/main/docs/AUTONOMOUS-DILIGENCE.md">read &rsaquo;</a>
+  </div>
+
+  <div class="doc-card">
+    <h3>ARCHITECTURE.md</h3>
+    <p>
+      The full operator architecture: persistent agent subprocess, supervisor, transport
+      split, channel multiplexers, MCP tool servers, encrypted persistence, scheduling,
+      resilience, and a security section to read twice.
+    </p>
+    <a href="https://github.com/ra-yavuz/vigil/blob/main/docs/ARCHITECTURE.md">read &rsaquo;</a>
+  </div>
+
+  <div class="doc-card">
+    <h3>examples/</h3>
+    <p>
+      Drop-in starting points: a generic <code>doctrine.md</code>, the two hook scripts
+      (which emit valid hook JSON), and a <code>settings.json</code> fragment that registers
+      them.
+    </p>
+    <a href="https://github.com/ra-yavuz/vigil/tree/main/examples">browse &rsaquo;</a>
+  </div>
+
+  <h2>What is verified vs. described</h2>
+  <p>
+    The diligence layer (doctrine + hooks) is documented from a working, verified setup; the
+    example files are real, redacted copies that emit valid hook JSON. The operator
+    architecture is presented as a <strong>reference architecture</strong>: a design known to
+    work in this shape, written so you can build your own. Verify every flag, path, and API
+    against current upstream docs before you rely on it.
+  </p>
+
+  <h2>Disclaimer / no warranty</h2>
+  <div class="warn">
+    This repository is <strong>documentation and example configuration</strong>, provided
+    <strong>as is, without warranty of any kind</strong>, express or implied. It describes
+    how to build a system that runs an AI agent with <strong>auto-approved tool calls</strong>
+    and broad shell, file, and network access. Building or running such a system is inherently
+    risky. <strong>You alone are responsible</strong> for anything an autonomous agent you
+    build does, including destructive, irreversible, or costly actions. The doctrine and hooks
+    here are a <strong>behavioural guardrail, not a security boundary</strong>: they reduce
+    careless mistakes but do not sandbox the agent. Real containment is the container/VM
+    boundary and tightly scoped credentials. The author is not liable for any harm, loss, or
+    damages, however caused, arising from following this documentation. Only run an
+    auto-approved configuration inside an isolated environment you fully control and can
+    afford to lose, on accounts and data you own. Full text:
+    <a href="https://github.com/ra-yavuz/vigil#disclaimer--no-warranty">repo README</a>,
+    license: MIT.
+  </div>
+
+  <footer>
+    <p>
+      Author: <a href="https://ra-yavuz.github.io/">Ramazan Yavuz</a>.
+      Source: <a href="https://github.com/ra-yavuz/vigil">github.com/ra-yavuz/vigil</a>.
+    </p>
+    <p style="font-size:0.78rem;opacity:0.7;margin-top:14px;line-height:1.6;">
+      This page does not use cookies, tracking, or analytics. Outbound links lead to third-party websites outside our control; we are not liable for their content or privacy practices.
+    </p>
+  </footer>
+</main>
+</body>
+</html>

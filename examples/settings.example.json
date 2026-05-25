@@ -1,0 +1,27 @@
+{
+  "_comment": "Example Claude Code settings.json fragment that wires up the two diligence hooks. Merge the 'hooks' block into your own ~/.claude/settings.json. Copy session-start.sh and diligence-reminder.sh into ~/.claude/hooks/ and chmod +x them first. See ../docs/AUTONOMOUS-DILIGENCE.md.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/session-start.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/diligence-reminder.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

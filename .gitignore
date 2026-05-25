@@ -1,0 +1,24 @@
+# This is a documentation repo. There is no build output, no runtime state.
+# These entries exist so that anyone who clones it and starts experimenting
+# (writing their own wrapper, dropping in secrets, generating a session id)
+# does not accidentally commit anything sensitive.
+
+# Runtime / state that a real implementation would produce. Never commit.
+runtime/
+*.session
+session-id
+*.key
+*.keyfile
+secrets.json
+.env
+.env.*
+
+# Editor / OS noise
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Node, if someone builds the reference wrapper in this tree
+node_modules/
+npm-debug.log*
