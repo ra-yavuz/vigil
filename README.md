@@ -21,8 +21,20 @@ example files. Read it, adapt it, build your own.
 | Document | What it covers |
 |---|---|
 | **[docs/AUTONOMOUS-DILIGENCE.md](docs/AUTONOMOUS-DILIGENCE.md)** | The doctrine + hooks pattern that makes autonomy safe to leave running. **Start here.** |
-| **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** | The full operator architecture: persistent agent subprocess, supervisor, transport split, channel multiplexers, MCP tools, persistence, scheduling, resilience. |
+| **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** | The full operator architecture: persistent agent subprocess, supervisor, transport split, channel multiplexers, voice/media (free local speech-to-text), encrypted searchable email DB, cost monitoring + dashboard, MCP tools, persistence, scheduling, resilience. Ends with a concrete **[implementation plan](docs/ARCHITECTURE.md#9-implementation-plan-prerequisites-and-a-path-to-running)** (prerequisites and bring-up order). |
 | **[examples/](examples/)** | Drop-in starting points: a generic `doctrine.md`, the two hook scripts, and a `settings.json` fragment. |
+
+### Before you build the WhatsApp channel, read this
+
+Linking a headless WhatsApp Web session hands the running agent full read and send access to
+that account. **Use a dedicated phone number you provision for the assistant, never your
+personal WhatsApp.** WhatsApp does not sanction unofficial automation and can ban the
+account; a dedicated number means a ban costs you the assistant, not your personal messaging.
+The multiplexer enforces *who the agent may talk to* in code, both directions: an
+**allowlist** drops inbound messages from anyone not explicitly permitted (so strangers
+cannot even prompt the agent), and an **outreach-thread** rule stops the agent cold-messaging
+arbitrary or model-invented numbers. Both gates and the QR-linking page are detailed in the
+[architecture doc](docs/ARCHITECTURE.md#34-the-whatsapp-multiplexer-separate-container).
 
 ## The idea in one paragraph
 

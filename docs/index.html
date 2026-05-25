@@ -244,10 +244,23 @@
     <h3>ARCHITECTURE.md</h3>
     <p>
       The full operator architecture: persistent agent subprocess, supervisor, transport
-      split, channel multiplexers, MCP tool servers, encrypted persistence, scheduling,
-      resilience, and a security section to read twice.
+      split, channel multiplexers, voice and media (free local speech-to-text via whisper.cpp,
+      images as multimodal content blocks), an encrypted searchable email database, cost
+      monitoring with a dashboard, MCP tool servers, encrypted persistence, scheduling,
+      resilience, a security section to read twice, and a concrete implementation plan.
     </p>
     <a href="https://github.com/ra-yavuz/vigil/blob/main/docs/ARCHITECTURE.md">read &rsaquo;</a>
+  </div>
+
+  <div class="doc-card">
+    <h3>Implementation plan</h3>
+    <p>
+      Section 9 of the architecture doc: the deployment checklist. Prerequisites (a host you
+      control, Docker with the host socket mounted, a coding-agent CLI, <code>whatsapp-web.js</code>
+      with a <strong>dedicated phone number</strong>, an authenticated entry surface, a
+      keyfile) and the bring-up order, email-first, WhatsApp last.
+    </p>
+    <a href="https://github.com/ra-yavuz/vigil/blob/main/docs/ARCHITECTURE.md#9-implementation-plan-prerequisites-and-a-path-to-running">read &rsaquo;</a>
   </div>
 
   <div class="doc-card">
@@ -268,6 +281,25 @@
     work in this shape, written so you can build your own. Verify every flag, path, and API
     against current upstream docs before you rely on it.
   </p>
+
+  <h2>WhatsApp: use a dedicated number</h2>
+  <div class="callout">
+    <p style="margin-top:0;">
+      Linking a headless WhatsApp Web session hands the running agent full read and send
+      access to that account. <strong>Provision a separate phone number for the assistant,
+      never your personal WhatsApp.</strong> WhatsApp does not sanction unofficial automation
+      and can ban the account; a dedicated number means a ban costs you the assistant, not your
+      personal messaging.
+    </p>
+    <p style="margin-bottom:0;">
+      The multiplexer enforces <em>who the agent may talk to</em> in code, both directions: an
+      <strong>allowlist</strong> drops inbound messages from anyone not explicitly permitted
+      (so strangers cannot even prompt the agent), and an <strong>outreach-thread</strong> rule
+      stops it cold-messaging arbitrary or model-invented numbers. Linking is done by scanning a
+      QR code from a small hosted page (kept behind your VPN). All detailed in the
+      <a href="https://github.com/ra-yavuz/vigil/blob/main/docs/ARCHITECTURE.md#34-the-whatsapp-multiplexer-separate-container">architecture doc</a>.
+    </p>
+  </div>
 
   <h2>Disclaimer / no warranty</h2>
   <div class="warn">

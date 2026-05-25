@@ -215,8 +215,36 @@ without a human present:
 It is not a sandbox and it is not a permission system. It does not *prevent* a bad action
 the way `bypassPermissions=false` would. It is a behavioural layer: it keeps a capable,
 auto-approved agent reasoning like a diligent engineer instead of an eager one. Pair it
-with real containment (see the security section of the architecture doc) - the two are
-complementary, not substitutes.
+with real containment and a deterministic action filter (see the
+[security section](ARCHITECTURE.md#7-security-this-is-the-part-to-read-twice) of the
+architecture doc) - the three layers are complementary, not substitutes.
+
+---
+
+## The same idea at other layers
+
+Hooks are the cleanest place to enforce this with Claude Code, because the hook fires on a
+real per-turn event and costs nothing. But the underlying idea - *re-assert the operating
+standard where the agent will reliably re-read it, and back it with deterministic checks* -
+can live at more than one layer, and a robust setup uses several:
+
+- **An auto-loaded operating-instructions file** in the agent's working directory (Claude
+  Code reads a `CLAUDE.md` in the project root every session). Putting the safety rules there
+  means a fresh session always starts with them, even without hooks. This is a good place for
+  the "critical safety rules" (never mass-delete, never force-push, always confirm
+  irreversible actions, preserve irreplaceable data).
+- **A deterministic action filter** that does not depend on the model cooperating at all - the
+  destructive-command detector described in the architecture doc. This is the part that still
+  works when the behavioural layer fails.
+- **The doctrine + hooks pattern in this document**, which re-asserts the standard on *every*
+  turn and adds the printed pre-response check.
+
+The hooks pattern is the recommended diligence layer for a Claude Code agent and is what the
+example files here implement. Treat the three bullets above as a stack: use the deterministic
+filter for hard stops, an auto-loaded instructions file as the always-present baseline, and
+the per-turn hook to keep the standard fresh and to force the pre-response check. None of the
+three is a security boundary by itself; together with real containment they make leaving an
+auto-approved agent running tolerable.
 
 ---
 
